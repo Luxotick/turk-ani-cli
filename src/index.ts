@@ -29,12 +29,12 @@ if (options.anime) {
   });
 }
 
-async function search(query: string) {
+async function search(query: string): Promise<Result[] | null> {
   const fd = new URLSearchParams();
   fd.append('arama', query);
 
   const results: Result[] = [];
-  const seenTitles = new Set<string>(); // Track seen titles
+  const seenTitles = new Set<string>();
 
   try {
     const response = await fetch("https://www.turkanime.co/arama", {
@@ -51,15 +51,61 @@ async function search(query: string) {
 
       if (title && animeId && !seenTitles.has(title)) {
         results.push({ title, animeId });
-        seenTitles.add(title); // Mark this title as seen
+        seenTitles.add(title);
       }
     });
-    
-    return results.length > 0 ? results : null;
+
+    // Eğer normal sonuç bulunamazsa alternatif yönteme geç
+    if (results.length === 0) {
+      // #orta-icerik içindeki script tag'ine bakarak animePath bilgisini elde edelim
+      const scriptText = $('#orta-icerik script').html();
+      if (scriptText) {
+        const parts = scriptText.split('=');
+        if (parts.length > 1) {
+          const animePath = parts[1].trim().replace(/['";]/g, '');
+          if (animePath) {
+            const animeUrl = `https://www.turkanime.co/${animePath}`;
+            console.log(`Alternatif URL: ${animeUrl}`);
+
+            // Anime sayfasını GET isteği ile çağır
+            const animeResponse = await fetch(animeUrl);
+            const animeHtml = await animeResponse.text();
+            const $$ = cheerio.load(animeHtml);
+
+            // Panel-menu içerisindeki aktif sekmeden anime id'yi çekelim
+            const activeLink = $$('div.panel-menu #aktif-sekme li.active a');
+            if (activeLink.length) {
+              const dataUrl = activeLink.attr('data-url') || '';
+              const animeIdMatch = dataUrl.match(/animeId=(\d+)/);
+              if (animeIdMatch && animeIdMatch[1]) {
+                const animeId = animeIdMatch[1];
+                // Başlık olarak animePath'in son kısmını kullanıyoruz
+                const titleParts = animePath.split('/');
+                const title = titleParts[titleParts.length - 1] || 'Unknown Anime';
+
+                results.push({ title, animeId });
+                return results;
+              } else {
+                console.log('[Uyarı] Panel-menu üzerinden anime ID bulunamadı.');
+                return null;
+              }
+            } else {
+              console.log('[Uyarı] Panel-menu bulunamadı.');
+              return null;
+            }
+          }
+        }
+      }
+      return null;
+    }
+
+    return results;
   } catch (error) {
     console.log('[HATA] ', error);
+    return null;
   }
 }
+
 
 async function prompt(results: Result[]) {
   const choices = results.map((result) => ({

@@ -21,6 +21,13 @@ export async function download(url: string, episodeName: string) {
     fs.mkdirSync(downloadPath, { recursive: true }); // Create the episode directory if it doesn't exist
   }
 
+  // Check if the master.m3u8 file already exists
+  if (fs.existsSync(masterFilePath)) {
+    console.log('Stream data already exists. Opening existing stream...');
+    startServer(sanitizedEpisodeName);
+    return;
+  }
+
   try {
     const options = new chrome.Options();
     options.setUserPreferences({
@@ -33,7 +40,6 @@ export async function download(url: string, episodeName: string) {
     options.addArguments('--disable-dev-shm-usage');
     options.addArguments('--window-size=1920x1080');
     options.addArguments('log-level=3')
-
 
     const driver = await new Builder()
       .forBrowser('chrome')
