@@ -5,7 +5,7 @@
 1. Clone this repository
    - `git clone https://github.com/Luxotick/turk-ani-cli.git`
 2. Run:
-   - `bun run src/index.ts --anime "One Piece"`
+   - `bunx tsx src/index.ts --anime "One Piece"`
 
 # About
 

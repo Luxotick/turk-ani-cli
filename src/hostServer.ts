@@ -6,7 +6,7 @@ import { isExportAssignment } from 'typescript';
 const app = express();
 const PORT = 8000;
 
-// Serve static files from the downloads directory
+const __dirname = import.meta.dirname
 app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
 
 const startServer = (episodeName: string) => {

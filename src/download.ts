@@ -1,16 +1,16 @@
 import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
-import { Options, WebDriver } from 'selenium-webdriver';
-const { By, Builder, until } = require('selenium-webdriver');
-import chrome from 'selenium-webdriver/chrome';
+import { Builder, WebDriver } from 'selenium-webdriver';
+import chrome from 'selenium-webdriver/chrome.js';
 import path from 'path';
 import fs from 'fs';
-import startServer from './hostServer'; // Sunucu dosyasını içe aktar
+import startServer from './hostServer.ts'; // Sunucu dosyasını içe aktar
 
 export async function download(url: string, episodeName: string) {
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
   };
+  const __dirname = import.meta.dirname
 
   // Remove spaces from the episode name
   const sanitizedEpisodeName = episodeName.replace(/ /g, ''); 

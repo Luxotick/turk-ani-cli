@@ -1,7 +1,7 @@
 import { Options, WebDriver, until, Builder, By, Capabilities } from 'selenium-webdriver';
-import chrome from 'selenium-webdriver/chrome';
+import chrome from 'selenium-webdriver/chrome.js';
 import CDP from 'chrome-remote-interface';
-import { download } from './download';
+import { download } from './download.ts';
 
 interface Response {
     url: string;
@@ -73,7 +73,7 @@ export async function getAlucard(url: string, selectedFansub: string, selectedBo
                 driver.close();
                 driver.quit();
             }
-        }, 10000); // Adjust timeout duration as needed
+        }, 100000); // Adjust timeout duration as needed
 
         // Wait for the response to be received or timeout
         await new Promise((resolve) => {

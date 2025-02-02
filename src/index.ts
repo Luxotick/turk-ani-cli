@@ -3,9 +3,10 @@ const program = new Command();
 import fetch from 'node-fetch';
 import cheerio from 'cheerio';
 import prompts from 'prompts';
-import { fetchBolumler } from './episode'; // episode.ts dosyasını içe aktar
-import { getAlucard } from './getAlucard';
+import { fetchBolumler } from './episode.ts'; // episode.ts dosyasını içe aktar
+import { getAlucard } from './getAlucard.ts';
 import { Buffer } from "buffer";
+import { updateRPCWithAnimeDetails } from './discordRPC.ts';
 
 interface Result {
   title: string;
@@ -109,26 +110,27 @@ async function search(query: string): Promise<Result[] | null> {
 
 async function prompt(results: Result[]) {
   const choices = results.map((result) => ({
-    title: result.title,
-    value: result.animeId,
+      title: result.title,
+      value: result.animeId,
   }));
 
   try {
-    const response: { selectedAnimeId: string } = await prompts({
-      type: 'select',
-      name: 'selectedAnimeId',
-      message: 'Bir anime seçin:',
-      choices: choices,
-    });
+      const response: { selectedAnimeId: string } = await prompts({
+          type: 'select',
+          name: 'selectedAnimeId',
+          message: 'Bir anime seçin:',
+          choices: choices,
+      });
 
-    console.log(`Seçilen anime ID: ${response.selectedAnimeId}`);
-    
-    const bolumler = await fetchBolumler(response.selectedAnimeId);
-    if (bolumler) {
-      await promptBolumSec(bolumler); // Burada await ekledik
-    }
+      console.log(`Seçilen anime ID: ${response.selectedAnimeId}`);
+      
+      const bolumler = await fetchBolumler(response.selectedAnimeId);
+      if (bolumler) {
+          await updateRPCWithAnimeDetails(response.selectedAnimeId); // Update RPC with anime details
+          await promptBolumSec(bolumler);
+      }
   } catch (error) {
-    console.log('[HATA] ', error);
+      console.log('[HATA] ', error);
   }
 }
 
@@ -191,6 +193,3 @@ async function promptBolumSec(bolumler: { title: string; link: string }[]) {
     console.log('[HATA] ', error);
   }
 }
-
-
-
