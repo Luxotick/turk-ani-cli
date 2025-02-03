@@ -18,7 +18,7 @@ const startServer = (episodeName: string) => {
 }
 
 function runMpv(episodeName: string) {
-    const command = `mpv --display-tags-clr --msg-level=cplayer=error --user-agent="Mozilla/5.0" --fullscreen --volume=50 "http://localhost:8000/downloads/${episodeName}/master.m3u8"`;
+    const command = `mpv --display-tags-clr --user-agent="Mozilla/5.0" --fullscreen --volume=50 "http://localhost:8000/downloads/${episodeName}/master.m3u8"`;
     
     exec(command, (error, stdout, stderr) => {
         if (error) {

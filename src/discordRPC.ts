@@ -8,7 +8,6 @@ const rpc = new Client({ transport: 'ipc' });
 let activity = {
     details: 'Browsing Anime',
     state: 'Idle',
-    startTimestamp: new Date(),
     largeImageKey: 'ads_z', // Replace with your image key
     largeImageText: 'Turk Ani Cli',
     instance: false,
@@ -27,8 +26,9 @@ let activity = {
 export async function initializeRPC() {
     rpc.on('ready', () => {
         console.log('Discord RPC is ready!');
+        clearActivity();
         rpc.setActivity(activity);
-    });
+            });
 
     rpc.on('disconnected', () => {
         console.log('Discord RPC disconnected.');
@@ -65,7 +65,7 @@ export async function updateRPCWithAnimeDetails(animeId: string) {
                 },
                 {
                     label: 'Watch Episode 🎬',  // Update button label for episode
-                    url: `https://www.turkanime.co${episodeLink}`,  // Use the specific anime episode URL
+                    url: `https://${episodeLink}`,  // Use the specific anime episode URL
                 },
             ],
         });
