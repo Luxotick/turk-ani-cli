@@ -24,51 +24,58 @@ let activity = {
 };
 
 export async function initializeRPC() {
-    rpc.on('ready', () => {
-        console.log('Discord RPC is ready!');
-        clearActivity();
-        rpc.setActivity(activity);
-    });
+    try {
+        rpc.on('ready', () => {
+            clearActivity();
+            rpc.setActivity(activity).catch(() => {});
+        });
 
-    rpc.on('disconnected', () => {
-        console.log('Discord RPC disconnected.');
-    });
+        rpc.on('disconnected', () => {
+            setTimeout(initializeRPC, 30000); // 30 saniye sonra yeniden başlat
+        });
 
-    await rpc.login({ clientId }).catch(console.error);
+        await rpc.login({ clientId }).catch(() => {
+            setTimeout(initializeRPC, 30000); // 30 saniye sonra tekrar dene
+        });
+    } catch (_) {
+        setTimeout(initializeRPC, 30000); // Genel hata olursa da 30 saniye sonra tekrar dene
+    }
 }
+
+
 
 export function updateActivity(newActivity: Partial<typeof activity>) {
+    if (!rpc || !rpc.user) return; // Bağlantı yoksa çık
     activity = { ...activity, ...newActivity };
-    rpc.setActivity(activity);
+    rpc.setActivity(activity).catch(() => {}); // Hata olursa yok say
 }
+
+
 
 export function clearActivity() {
     rpc.clearActivity().catch(console.error);
 }
 
 export async function updateRPCWithAnimeDetails(animeId: string, selectedBolumIndex: number) {
+    if (!rpc || !rpc.user) return; // Bağlantı yoksa çık
+
     const bolumler = await fetchBolumler(animeId);
-    if (bolumler && bolumler[selectedBolumIndex].title) {
+    if (bolumler && bolumler[selectedBolumIndex]?.title) {
         const title = bolumler[selectedBolumIndex].title;
         const titleWithoutNumber = title.replace(/\d+$/, '').trim();
         const episodeNumber = title.match(/\d+$/) ? title.match(/\d+$/)[0] : 'Unknown';
-        const episodeLink = bolumler[selectedBolumIndex].link;  // Use the link from the fetched bolumler
+        const episodeLink = bolumler[selectedBolumIndex].link;
 
         updateActivity({
             details: `Watching ${titleWithoutNumber}`,
             state: `Episode ${episodeNumber}`,
             buttons: [
-                {
-                    label: 'GitHub Project 🛠️',
-                    url: 'https://github.com/Luxotick/turk-ani-cli',
-                },
-                {
-                    label: 'Watch Episode 🎬',  
-                    url: `https://${episodeLink}`, 
-                },
+                { label: 'GitHub Project 🛠️', url: 'https://github.com/Luxotick/turk-ani-cli' },
+                { label: 'Watch Episode 🎬', url: `https://${episodeLink}` },
             ],
         });
     }
 }
+
 
 initializeRPC();

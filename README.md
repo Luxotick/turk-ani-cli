@@ -7,6 +7,8 @@
 2. Run:
    - `bunx tsx src/index.ts --anime "One Piece"`
 
+![Usage](uh.gif)
+
 # About
 
 I made this project for learning web-scrapping and this is my first project that i used typescript. Also i used selenium for collecting the data from the website because of the shitty coding in "turkanime.co", there is some random prints on the console that left from the old project. The admin of the turkanime website refused to give me an api key for this project and he blamed me for getting data with webscrapping and sharing it with him LOL.
