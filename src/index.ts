@@ -56,9 +56,7 @@ async function search(query: string): Promise<Result[] | null> {
       }
     });
 
-    // Eğer normal sonuç bulunamazsa alternatif yönteme geç
     if (results.length === 0) {
-      // #orta-icerik içindeki script tag'ine bakarak animePath bilgisini elde edelim
       const scriptText = $('#orta-icerik script').html();
       if (scriptText) {
         const parts = scriptText.split('=');
@@ -68,19 +66,16 @@ async function search(query: string): Promise<Result[] | null> {
             const animeUrl = `https://www.turkanime.co/${animePath}`;
             console.log(`Alternatif URL: ${animeUrl}`);
 
-            // Anime sayfasını GET isteği ile çağır
             const animeResponse = await fetch(animeUrl);
             const animeHtml = await animeResponse.text();
             const $$ = cheerio.load(animeHtml);
 
-            // Panel-menu içerisindeki aktif sekmeden anime id'yi çekelim
             const activeLink = $$('div.panel-menu #aktif-sekme li.active a');
             if (activeLink.length) {
               const dataUrl = activeLink.attr('data-url') || '';
               const animeIdMatch = dataUrl.match(/animeId=(\d+)/);
               if (animeIdMatch && animeIdMatch[1]) {
                 const animeId = animeIdMatch[1];
-                // Başlık olarak animePath'in son kısmını kullanıyoruz
                 const titleParts = animePath.split('/');
                 const title = titleParts[titleParts.length - 1] || 'Unknown Anime';
 
@@ -107,7 +102,6 @@ async function search(query: string): Promise<Result[] | null> {
   }
 }
 
-
 async function prompt(results: Result[]) {
   const choices = results.map((result) => ({
       title: result.title,
@@ -126,15 +120,14 @@ async function prompt(results: Result[]) {
       
       const bolumler = await fetchBolumler(response.selectedAnimeId);
       if (bolumler) {
-          await updateRPCWithAnimeDetails(response.selectedAnimeId); // Update RPC with anime details
-          await promptBolumSec(bolumler);
+          await promptBolumSec(bolumler, response.selectedAnimeId);
       }
   } catch (error) {
       console.log('[HATA] ', error);
   }
 }
 
-async function promptBolumSec(bolumler: { title: string; link: string }[]) {
+async function promptBolumSec(bolumler: { title: string; link: string }[], animeId: string) {
   const choices = bolumler.map((bolum, index) => ({
     title: bolum.title,
     value: index,
@@ -152,19 +145,16 @@ async function promptBolumSec(bolumler: { title: string; link: string }[]) {
     console.log(`Seçilen bölüm: ${selectedBolum.title}`);
     console.log(`Bölüm Linki: https:${selectedBolum.link}`);
 
-    // Seçilen bölümün HTML içeriğini kontrol et
     const responseHtml = await fetch(`https:${selectedBolum.link}`);
     const htmlContent = await responseHtml.text();
     
-    // 'pull-right' div'ini kontrol et
     const $ = cheerio.load(htmlContent);
     const hasPullRightDiv = $('.pull-right').length > 0;
 
     if (hasPullRightDiv) {
-      // 'pull-right' div'i mevcutsa, butonları kullanıcıya sun
       const buttonChoices = $('.pull-right button').map((i, button) => {
         const buttonLabel = $(button).text().trim();
-        return { title: buttonLabel, value: $(button).attr('onclick') }; // onclick içeriği değer olarak al
+        return { title: buttonLabel, value: $(button).attr('onclick') };
       }).get();
 
       const buttonResponse = await prompts({
@@ -180,7 +170,7 @@ async function promptBolumSec(bolumler: { title: string; link: string }[]) {
         console.log(`Seçilen video parametresi: ${buttonChoices}`);
         await getAlucard(`http:${selectedBolum.link}`, `null`, `${selectedBolum.title}`);
       }else{
-        const videoSelectionParam = selectedButton.split("'")[1]; // onclick içeriğinden parametreyi al
+        const videoSelectionParam = selectedButton.split("'")[1];
         const encode = (str: string):string => Buffer.from(str, 'binary').toString('base64');
         console.log(`Seçilen video parametresi: ${encode(videoSelectionParam)}`);
         await getAlucard(`http:${selectedBolum.link}`, `${videoSelectionParam}`, `${selectedBolum.title}`);
@@ -189,6 +179,8 @@ async function promptBolumSec(bolumler: { title: string; link: string }[]) {
       console.log("Seçilen bölüm için geçerli video seçenekleri bulunamadı.");
       await getAlucard(`https:${selectedBolum.link}`, "null", `${selectedBolum.title}`)
     }
+
+    await updateRPCWithAnimeDetails(animeId, response.selectedBolumIndex);
   } catch (error) {
     console.log('[HATA] ', error);
   }

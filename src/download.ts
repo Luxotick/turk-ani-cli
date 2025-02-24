@@ -57,7 +57,6 @@ export async function download(url: string, episodeName: string) {
       console.log('Downloading alucard stream data..')
       console.log('GET Request succesfully sent')
 
-      // Create an array to hold the new content for master.m3u8
       const newContent: string[] = [];
 
       for (const line of lines) {
@@ -72,6 +71,8 @@ export async function download(url: string, episodeName: string) {
             const localFileName = `${resolution}.m3u8`;
             const localFilePath = path.join(downloadPath, localFileName);
 
+            console.log(`Downloading ${localFileName}..`);
+
             // Download the linked file using Selenium
             await downloadFileWithSelenium(driver, line, localFilePath);
             newContent.push(`http://localhost:8000/downloads/${sanitizedEpisodeName}/${localFileName}`); // Change to the HTTP URL with the sanitized episode name
@@ -81,7 +82,6 @@ export async function download(url: string, episodeName: string) {
         }
       }
 
-      // Write the new content to the master.m3u8 file
       fs.writeFileSync(masterFilePath, newContent.join('\n'));
       console.log(`master.m3u8 created at ${masterFilePath}`);
     } finally {
@@ -100,13 +100,34 @@ async function waitForDownloadToFinish(downloadPath: string, timeout: number = 6
 
   return new Promise((resolve, reject) => {
     const checkInterval = setInterval(() => {
-      const files = fs.readdirSync(downloadPath);
+      const files = fs.readdirSync(downloadPath).filter(f => f.startsWith("master") && f.endsWith(".m3u8"));
 
       if (files.length > 0) {
-        const filePath = path.join(downloadPath, files[0]);
+        const newestFile = files
+          .map(file => ({
+            file,
+            time: fs.statSync(path.join(downloadPath, file)).mtimeMs
+          }))
+          .sort((a, b) => b.time - a.time)[0].file;
+
+        const filePath = path.join(downloadPath, newestFile);
 
         if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
           clearInterval(checkInterval);
+
+          const content = fs.readFileSync(filePath, "utf8");
+          const resolutionMatch = content.match(/\/(\d+)\//); 
+
+          if (resolutionMatch) {
+            const resolution = resolutionMatch[1];
+            const correctFilePath = path.join(downloadPath, `${resolution}.m3u8`);
+
+            fs.renameSync(filePath, correctFilePath);
+            console.log(`Renamed ${filePath} to ${correctFilePath}`);
+            resolve(correctFilePath);
+            return;
+          }
+
           resolve(filePath);
         }
       }
@@ -118,6 +139,8 @@ async function waitForDownloadToFinish(downloadPath: string, timeout: number = 6
     }, 1000);
   });
 }
+
+
 
 async function downloadFileWithSelenium(driver: WebDriver, url: string, outputPath: string) {
   await driver.get(url);
