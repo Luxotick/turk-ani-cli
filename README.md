@@ -4,8 +4,17 @@
 
 1. Clone this repository
    - `git clone https://github.com/Luxotick/turk-ani-cli.git`
-2. Run:
-   - `bunx tsx src/index.ts --anime "One Piece"`
+2. Install bun
+   - powershell -c "irm bun.sh/install.ps1 | iex"
+
+3. (Optional, can be done with Bun if you know how to with bun):
+   - https://nodejs.org/en/download
+ 
+4. Install Dependencies with:
+   - npm i
+
+5. Run:
+   - `bunx tsx src/index.ts --anime "<your desired anime name>"`
 
 ![Usage](uh.gif)
 
