@@ -34,9 +34,16 @@ const startServer = (episodeName: string) => {
 function runMpv(episodeName: string) {
     const command = `mpv --display-tags-clr --user-agent="Mozilla/5.0" --fullscreen --volume=50 \
         --cache=yes \
+        --cache-pause=no \
         --cache-secs=60 \
         --demuxer-readahead-secs=60 \
         --force-seekable=yes \
+        --stream-lavf-o="stimeout=60000000" \
+        --network-timeout=60 \
+        --hls-bitrate=max \
+        --stream-buffer-size=64M \
+        --no-cache-pause \
+        --vd-lavc-threads=8 \
         "http://localhost:8000/downloads/${episodeName}/master.m3u8"`;
     
     exec(command, (error, stdout, stderr) => {
