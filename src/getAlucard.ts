@@ -1,7 +1,7 @@
 import { Options, WebDriver, until, Builder, By, Capabilities } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome.js';
 import CDP from 'chrome-remote-interface';
-import { download } from './download.ts';
+import { download } from './download.js';
 
 interface Response {
     url: string;

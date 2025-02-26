@@ -4,7 +4,7 @@ import { Builder, WebDriver } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome.js';
 import path from 'path';
 import fs from 'fs';
-import startServer from './hostServer.ts'; // Sunucu dosyasını içe aktar
+import startServer from './hostServer.js'; // Sunucu dosyasını içe aktar
 
 export async function download(url: string, episodeName: string) {
   const headers = {
@@ -12,8 +12,16 @@ export async function download(url: string, episodeName: string) {
   };
   const __dirname = import.meta.dirname
 
-  // Remove spaces from the episode name
-  const sanitizedEpisodeName = episodeName.replace(/ /g, ''); 
+  // Remove spaces and sanitize the episode name for safe file system usage
+  const sanitizedEpisodeName = episodeName
+    .replace(/ /g, '')
+    .replace(/:/g, '') // Remove colons
+    .replace(/[<>:"\/\\|?*]/g, '') // Remove Windows invalid characters
+    .replace(/[^\x20-\x7E]/g, '') // Remove non-printable ASCII characters
+    .replace(/^\.+/, '') // Remove leading periods (hidden files in Unix)
+    .replace(/^(con|prn|aux|nul|com\d|lpt\d)$/i, '_$1') // Handle Windows reserved names
+    .substring(0, 255); // Limit length to common filesystem max
+  
   const downloadPath = path.resolve(__dirname, "downloads", sanitizedEpisodeName); // Folder for the specific episode
   const masterFilePath = path.join(downloadPath, "master.m3u8");
 
@@ -140,9 +148,8 @@ async function waitForDownloadToFinish(downloadPath: string, timeout: number = 6
   });
 }
 
-
-
 async function downloadFileWithSelenium(driver: WebDriver, url: string, outputPath: string) {
+  console.log(`Downloading ${url} to ${outputPath}`);
   await driver.get(url);
 
   // Wait for the download to complete

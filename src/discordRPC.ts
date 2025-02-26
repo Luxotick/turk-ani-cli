@@ -1,6 +1,6 @@
 // discordRPC.ts
 import { Client } from 'discord-rpc';
-import { fetchBolumler } from './episode.ts'; 
+import { fetchBolumler } from './episode.js'; 
 
 const clientId = '1335425935578628208';
 const rpc = new Client({ transport: 'ipc' });
@@ -63,7 +63,8 @@ export async function updateRPCWithAnimeDetails(animeId: string, selectedBolumIn
     if (bolumler && bolumler[selectedBolumIndex]?.title) {
         const title = bolumler[selectedBolumIndex].title;
         const titleWithoutNumber = title.replace(/\d+$/, '').trim();
-        const episodeNumber = title.match(/\d+$/) ? title.match(/\d+$/)[0] : 'Unknown';
+        const matches = title.match(/\d+$/);
+        const episodeNumber = matches ? matches[0] : 'Unknown';
         const episodeLink = bolumler[selectedBolumIndex].link;
 
         updateActivity({

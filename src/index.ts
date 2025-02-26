@@ -1,31 +1,27 @@
+#!/usr/bin/env node
+
 import { Command } from 'commander';
 const program = new Command();
+import * as cheerio from 'cheerio';
 import fetch from 'node-fetch';
-import cheerio from 'cheerio';
 import prompts from 'prompts';
-import { fetchBolumler } from './episode.ts'; // episode.ts dosyasını içe aktar
-import { getAlucard } from './getAlucard.ts';
+import { fetchBolumler } from './episode.js'; // episode.ts dosyasını içe aktar
+import { getAlucard } from './getAlucard.js';
 import { Buffer } from "buffer";
-import { updateRPCWithAnimeDetails } from './discordRPC.ts';
+import { updateRPCWithAnimeDetails } from './discordRPC.js';
 
 interface Result {
   title: string;
   animeId: string; // Added animeId to the Result interface
 }
 
-program
-  .version('0.0.1')
-  .description('Turk-Ani-CLI, Türkçe anime izlemek için geliştirilmiş bir CLI aracı')
-  .option('-a, --anime <name>', 'Anime bul');
+const args = process.argv.slice(2);
+const animeName = args.join(' ').replace(/^"(.*)"$/, '$1'); // Remove quotes if present
 
-program.parse(process.argv);
-
-const options = program.opts();
-if (options.anime) {
-  console.log(`Anime bilgisi getiriliyor: ${options.anime}`);
-  search(options.anime).then((results) => {
+if (animeName) {
+  console.log(`Anime bilgisi getiriliyor: ${animeName}`);
+  search(animeName).then((results) => {
     if (results === null) return console.log('Anime bulunamadı.');
-
     prompt(results as Result[]);
   });
 }
