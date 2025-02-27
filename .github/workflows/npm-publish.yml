@@ -1,0 +1,81 @@
+name: Publish to NPM
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - '.gitattributes'
+
+jobs:
+  check_and_publish:
+    runs-on: ubuntu-latest
+    if: "contains(github.event.head_commit.message, '[publish]')"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Version management
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
+          
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          
+          if [[ "${{ github.event.head_commit.message }}" == *"[publish stable]"* ]]; then
+            # Handle stable release (remove -beta.x and publish as stable)
+            if [[ "$CURRENT_VERSION" == *"-beta"* ]]; then
+              NEW_VERSION=$(echo $CURRENT_VERSION | cut -d'-' -f1)
+              echo "Publishing stable version $NEW_VERSION"
+            else
+              # If already stable, bump patch version
+              NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+              echo "Publishing new stable version $NEW_VERSION"
+            fi
+          else
+            # Handle beta increment
+            if [[ "$CURRENT_VERSION" == *"-beta"* ]]; then
+              # Increment beta number (e.g., 2.0.0-beta.1 -> 2.0.0-beta.2)
+              BASE_VERSION=$(echo $CURRENT_VERSION | cut -d'-' -f1)
+              BETA_NUM=$(echo $CURRENT_VERSION | grep -o 'beta\.[0-9]*' | cut -d'.' -f2)
+              NEW_BETA=$((BETA_NUM + 1))
+              NEW_VERSION="$BASE_VERSION-beta.$NEW_BETA"
+              echo "Publishing beta version $NEW_VERSION"
+            else
+              # If current version is stable, start new beta for next version
+              BASE_VERSION=$(echo $CURRENT_VERSION | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+              NEW_VERSION="$BASE_VERSION-beta.1"
+              echo "Starting new beta version $NEW_VERSION"
+            fi
+          fi
+          
+          # Update package.json with new version
+          npm version $NEW_VERSION --no-git-tag-version --allow-same-version
+          
+          # Commit and push changes
+          git add package.json
+          git commit -m "Bump version to $NEW_VERSION [skip ci]"
+          git tag v$NEW_VERSION
+          git push
+          git push --tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to NPM
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} 
