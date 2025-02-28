@@ -85,7 +85,6 @@ q quit 0
             --vd-lavc-threads=8 \
             --no-ytdl \
             --profile=low-latency \
-            --no-cache \
             --untimed \
             --fullscreen \
             --input-conf="${inputConfPath}" \

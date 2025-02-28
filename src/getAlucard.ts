@@ -24,9 +24,9 @@ async function killChromeProcesses() {
     return new Promise((resolve) => {
         exec('taskkill /F /IM chrome.exe /T && taskkill /F /IM chromedriver.exe /T', (error) => {
             if (error) {
-                console.log('No Chrome processes found or already terminated');
+                //console.log('No Chrome processes found or already terminated');
             } else {
-                console.log('Successfully killed Chrome processes');
+                //console.log('Successfully killed Chrome processes');
             }
             resolve(null);
         });
@@ -37,7 +37,7 @@ async function closeDebuggerConnection() {
     try {
         const client = await CDP({ port: 9224 });
         await client.close();
-        console.log('Closed Chrome debugging session');
+        //console.log('Closed Chrome debugging session');
     } catch (error) {
         // Ignore errors if the connection is already closed
     }
@@ -54,19 +54,19 @@ export async function getAlucard(url: string, selectedFansubParam: string, selec
         const pageSource = await driver!.getPageSource();
         
         // Log a portion of the page source to debug
-        console.log('Page source snippet:', pageSource.substring(0, 500) + '...');
+        //console.log('Page source snippet:', pageSource.substring(0, 500) + '...');
         
         // Try different regex patterns to find the URL
         const alucardMatch = pageSource.match(/https:\/\/alucard\.stream\/cdn\/playlist\/[^"']*/);
         if (alucardMatch) {
-            console.log('Found Alucard URL with pattern 1:', alucardMatch[0]);
+            //console.log('Found Alucard URL with pattern 1:', alucardMatch[0]);
             return alucardMatch[0];
         }
         
         // Try alternative pattern
         const altMatch = pageSource.match(/https:\/\/[^"']*alucard[^"']*\.m3u8/i);
         if (altMatch) {
-            console.log('Found Alucard URL with pattern 2:', altMatch[0]);
+            //console.log('Found Alucard URL with pattern 2:', altMatch[0]);
             return altMatch[0];
         }
         
@@ -83,7 +83,7 @@ export async function getAlucard(url: string, selectedFansubParam: string, selec
             .setChromeOptions(options)
             .build();
 
-        console.log('Chrome instance created successfully');
+        //console.log('Chrome instance created successfully');
         console.log('Navigating to URL:', url);
         
         await driver.get(url);
@@ -94,12 +94,12 @@ export async function getAlucard(url: string, selectedFansubParam: string, selec
             
             // Wait for the fansub buttons to load
             try {
-                console.log('Waiting for fansub buttons to appear...');
+                //console.log('Waiting for fansub buttons to appear...');
                 await driver.wait(until.elementLocated(By.css('.pull-right button')), 10000);
                 
                 // Find all fansub buttons
                 const buttons = await driver.findElements(By.css('.pull-right button'));
-                console.log(`Found ${buttons.length} fansub buttons`);
+                //console.log(`Found ${buttons.length} fansub buttons`);
                 
                 // Find the button with matching text
                 let fansubParam = null;
@@ -112,7 +112,7 @@ export async function getAlucard(url: string, selectedFansubParam: string, selec
                             const paramMatch = onclick.match(/'([^']+)'/);
                             if (paramMatch && paramMatch[1]) {
                                 fansubParam = paramMatch[1];
-                                console.log(`Found matching fansub button with parameter: ${fansubParam}`);
+                                //console.log(`Found matching fansub button with parameter: ${fansubParam}`);
                                 break;
                             }
                         }
@@ -139,16 +139,16 @@ export async function getAlucard(url: string, selectedFansubParam: string, selec
         }
         
         // Add a wait for page to load after script execution
-        console.log('Waiting for page to update after script execution...');
+        //console.log('Waiting for page to update after script execution...');
         await driver.sleep(3000);
         
         // Try to find any iframe that might contain the video
         try {
             const iframes = await driver.findElements(By.tagName('iframe'));
-            console.log(`Found ${iframes.length} iframes on the page`);
+            //console.log(`Found ${iframes.length} iframes on the page`);
             
             if (iframes.length > 0) {
-                console.log('Switching to first iframe to check for video content');
+                //console.log('Switching to first iframe to check for video content');
                 await driver.switchTo().frame(iframes[0]);
                 await driver.sleep(1000);
                 await driver.switchTo().defaultContent();

@@ -57,7 +57,7 @@ export async function download(url: string, episodeName: string, currentEpisodeI
   }
 
   try {
-    console.log('Setting up Chrome options for download...');
+    //console.log('Setting up Chrome options for download...');
     const options = new chrome.Options();
     options.setUserPreferences({
       'download.default_directory': downloadPath,
@@ -78,45 +78,11 @@ export async function download(url: string, episodeName: string, currentEpisodeI
 
     try {
       console.log('Navigating to Alucard stream URL:', url);
-      
-      // If direct fetch fails, try with Selenium
       await driver.get(url);
-      console.log('Page loaded in Chrome driver');
       
-      // Wait a moment for any redirects or JavaScript to execute
-      await driver.sleep(5000);
+      //console.log('Downloading alucard stream data..');
+      console.log('GET Request successfully sent');
       
-      // Get the current URL after any redirects
-      const currentUrl = await driver.getCurrentUrl();
-      console.log('Current URL after possible redirects:', currentUrl);
-      
-      // Try to get page source to see if we can extract the m3u8 directly
-      const pageSource = await driver.getPageSource();
-      const m3u8Match = pageSource.match(/https:\/\/[^"']*\.m3u8/);
-      
-      if (m3u8Match) {
-        const m3u8Url = m3u8Match[0];
-        console.log('Found m3u8 URL in page source:', m3u8Url);
-        
-        // Try to fetch the m3u8 file directly
-        try {
-          const m3u8Response = await fetch(m3u8Url, { headers });
-          if (m3u8Response.ok) {
-            const m3u8Content = await m3u8Response.text();
-            fs.writeFileSync(masterFilePath, m3u8Content);
-            console.log(`Saved master.m3u8 from extracted URL`);
-            
-            await cleanupChrome();
-            await startServer(sanitizedEpisodeName, currentEpisodeIndex || 0, allEpisodes || [], fansubName);
-            return;
-          }
-        } catch (m3u8Error) {
-          console.log('Error fetching m3u8:', m3u8Error);
-        }
-      }
-      
-      // If we get here, try the original download method
-      console.log('Attempting to download via Selenium...');
       const masterFilePathFromDownload = await waitForDownloadToFinish(downloadPath) as string;
       console.log('Download completed:', masterFilePathFromDownload);
 
@@ -125,7 +91,7 @@ export async function download(url: string, episodeName: string, currentEpisodeI
         const masterContent = fs.readFileSync(masterFilePathFromDownload, 'utf8');
         const lines = masterContent.split('\n');
 
-        console.log('Processing m3u8 content...');
+        //console.log('Processing m3u8 content...');
         const newContent: string[] = [];
 
         for (const line of lines) {
@@ -140,7 +106,7 @@ export async function download(url: string, episodeName: string, currentEpisodeI
               const localFileName = `${resolution}.m3u8`;
               const localFilePath = path.join(downloadPath, localFileName);
 
-              console.log(`Downloading ${localFileName}..`);
+              //console.log(`Downloading ${localFileName}..`);
 
               // Download the linked file using Selenium
               await downloadFileWithSelenium(driver, line, localFilePath);
@@ -158,7 +124,7 @@ export async function download(url: string, episodeName: string, currentEpisodeI
       }
 
       await cleanupChrome();
-      await startServer(`${sanitizedEpisodeName}`, currentEpisodeIndex || 0, allEpisodes || [], fansubName);
+      await startServer(sanitizedEpisodeName, currentEpisodeIndex || 0, allEpisodes || [], fansubName);
     } finally {
       await driver.close();
       await driver.quit();
@@ -169,8 +135,8 @@ export async function download(url: string, episodeName: string, currentEpisodeI
   }
 }
 
-async function waitForDownloadToFinish(downloadPath: string, timeout: number = 120000) {
-  console.log(`Waiting for download in ${downloadPath}...`);
+async function waitForDownloadToFinish(downloadPath: string, timeout: number = 60000) {
+  //console.log(`Waiting for download in ${downloadPath}...`);
   const startTime = Date.now();
 
   return new Promise((resolve, reject) => {
@@ -178,7 +144,6 @@ async function waitForDownloadToFinish(downloadPath: string, timeout: number = 1
       try {
         // Check for master.m3u8 files specifically
         const files = fs.readdirSync(downloadPath).filter(f => f.startsWith("master") && f.endsWith(".m3u8"));
-        console.log(`Found ${files.length} master m3u8 files in download directory:`, files);
         
         if (files.length > 0) {
           // Get the newest file
@@ -190,7 +155,6 @@ async function waitForDownloadToFinish(downloadPath: string, timeout: number = 1
             .sort((a, b) => b.time - a.time)[0].file;
 
           const filePath = path.join(downloadPath, newestFile);
-          console.log(`Found master file: ${filePath}`);
           
           if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
             clearInterval(checkInterval);
@@ -205,7 +169,7 @@ async function waitForDownloadToFinish(downloadPath: string, timeout: number = 1
                 const correctFilePath = path.join(downloadPath, `${resolution}.m3u8`);
 
                 fs.renameSync(filePath, correctFilePath);
-                console.log(`Renamed ${filePath} to ${correctFilePath}`);
+                //console.log(`Renamed ${filePath} to ${correctFilePath}`);
                 resolve(correctFilePath);
                 return;
               }
@@ -213,19 +177,6 @@ async function waitForDownloadToFinish(downloadPath: string, timeout: number = 1
               console.log(`Error reading file content for renaming: ${readError}`);
             }
             
-            resolve(filePath);
-            return;
-          }
-        }
-        
-        // If no master files found, check for any m3u8 files as fallback
-        const allM3u8Files = fs.readdirSync(downloadPath).filter(f => f.endsWith(".m3u8"));
-        if (allM3u8Files.length > 0 && files.length === 0) {
-          const filePath = path.join(downloadPath, allM3u8Files[0]);
-          console.log(`Found non-master m3u8 file: ${filePath}`);
-          
-          if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
-            clearInterval(checkInterval);
             resolve(filePath);
             return;
           }
@@ -244,7 +195,7 @@ async function waitForDownloadToFinish(downloadPath: string, timeout: number = 1
           reject(error);
         }
       }
-    }, 2000); // Check every 2 seconds
+    }, 1000); // Check every 1 second
   });
 }
 
