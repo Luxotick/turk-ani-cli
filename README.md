@@ -4,7 +4,7 @@ A command-line interface for watching anime with Turkish subtitles. Stream your 
 
 ## Prerequisites
 
-- Node.js (v14 or higher)
+- Node.js (v18 or higher)
 - MPV Player
 
 ## Installation
@@ -16,7 +16,11 @@ npm install -g turk-ani-cli
 ## Usage
 
 ```bash
+# Search for an anime
 tacli "One Piece"
+
+# Or use npm start for development
+npm start "One Piece"
 ```
 
 ![Usage](https://github.com/Luxotick/turk-ani-cli/blob/main/uh.gif?raw=true)
@@ -28,16 +32,25 @@ tacli "One Piece"
 - 🎯 Easy-to-use interactive CLI interface
 - 🎮 Discord Rich Presence integration
 - 📝 Multiple fansub group support
+- ⏭️ Next episode functionality (press 'N' during playback)
+- 🎬 Automatic playback of highest quality available
 
-## To - Do
-- quality selection (currently automatically selects the best quality)
-- next episode command
+## MPV Player Controls
+
+During playback, you can use the following controls:
+- **Space** - Play/Pause
+- **Arrow Right** - Forward 5 seconds
+- **Arrow Left** - Backward 5 seconds
+- **Arrow Up** - Forward 60 seconds
+- **Arrow Down** - Backward 60 seconds
+- **N** - Play next episode
+- **Q** - Quit
 
 ## Discord Rich Presence
 
 The application includes Discord integration that shows:
-- Name of the anime that user is currrrrently watching
-- Current episode
+- Name of the anime that user is currently watching
+- Current episode number
 - Direct link to watch the episode
 - Link to the project
 
@@ -76,18 +89,20 @@ npm install -g turk-ani-cli
 git clone https://github.com/Luxotick/turk-ani-cli.git
 ```
 
-
 2. Install dependencies:
 ```bash
 cd turk-ani-cli
-```
-```bash
 npm install
 ```
 
 3. Run the development version:
 ```bash
 npm start "One Piece"
+```
+
+4. Build for distribution:
+```bash
+npm run build
 ```
 
 ## Contributing
@@ -106,12 +121,10 @@ MIT
 
 [Luxotick](https://github.com/Luxotick)
 
-# About
+## About
 
-I made this project for learning web-scrapping and this is my first project that i used typescript. I also used selenium for collecting the data from the website because of the shitty coding in "turkanime.co", there is some random prints on the console that left from the old project. The admin of the turkanime website refused to give me an api key for this project and he blamed me for getting data with webscrapping and sharing it with him LOL.
-
+This project was created for learning web-scraping and is my first TypeScript project. I used Selenium for collecting data from the website due to the complex structure of "turkanime.co". The project allows Turkish anime fans to easily stream content with a simple command-line interface.
 
 ![image](https://github.com/user-attachments/assets/fd05e3bb-dc35-480a-bb11-977a25c712f3)
-
 
 "Are you sharing proof that you took videos without permission? :D"

@@ -7,34 +7,31 @@
   "bin": {
     "tacli": "./dist/index.js"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build",
-    "start": "node --loader ts-node/esm src/index.ts"
+    "start": "tsx src/index.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest",
     "@types/chrome-remote-interface": "^0.31.14",
+    "@types/discord-rpc": "^4.0.8",
     "@types/express": "^5.0.0",
     "@types/prompts": "^2.4.9",
     "@types/selenium-webdriver": "^4.1.24",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.19.3",
     "typescript": "^5.5.4"
   },
   "dependencies": {
-    "@types/discord-rpc": "^4.0.8",
     "cheerio": "^1.0.0-rc.12",
     "chrome-remote-interface": "^0.33.2",
     "commander": "^12.1.0",
     "discord-rpc": "^4.0.1",
     "discord.js": "^14.17.3",
     "express": "^4.19.2",
-    "form-data": "^4.0.0",
-    "fs": "^0.0.1-security",
-    "hls.js": "^1.5.13",
     "node-fetch": "^3.3.2",
-    "package": "^1.0.1",
-    "path": "^0.12.7",
     "prompts": "^2.4.2",
     "puppeteer": "^22.15.0",
     "selenium-webdriver": "^4.23.0"

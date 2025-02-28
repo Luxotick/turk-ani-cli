@@ -150,7 +150,8 @@ async function promptBolumSec(bolumler: { title: string; link: string }[], anime
     if (hasPullRightDiv) {
       const buttonChoices = $('.pull-right button').map((i, button) => {
         const buttonLabel = $(button).text().trim();
-        return { title: buttonLabel, value: $(button).attr('onclick') };
+        const onclick = $(button).attr('onclick');
+        return { title: buttonLabel, value: onclick || '' };
       }).get();
 
       const buttonResponse = await prompts({
@@ -162,18 +163,22 @@ async function promptBolumSec(bolumler: { title: string; link: string }[], anime
 
       const selectedButton = buttonResponse.selectedButton;
 
-      if (buttonChoices.length === 1){
+      if (buttonChoices.length === 1) {
+        const buttonText = buttonChoices[0].title;
+        const videoSelectionParam = buttonChoices[0].value?.split("'")[1] || 'null';
         console.log(`Seçilen video parametresi: ${buttonChoices}`);
-        await getAlucard(`http:${selectedBolum.link}`, `null`, `${selectedBolum.title}`);
-      }else{
+        await getAlucard(`http:${selectedBolum.link}`, videoSelectionParam, `${selectedBolum.title}`, response.selectedBolumIndex, bolumler, buttonText);
+      } else {
+        const selectedChoice = buttonChoices.find(c => c.value === selectedButton);
+        const buttonText = selectedChoice?.title || 'null';
         const videoSelectionParam = selectedButton.split("'")[1];
         const encode = (str: string):string => Buffer.from(str, 'binary').toString('base64');
         console.log(`Seçilen video parametresi: ${encode(videoSelectionParam)}`);
-        await getAlucard(`http:${selectedBolum.link}`, `${videoSelectionParam}`, `${selectedBolum.title}`);
+        await getAlucard(`http:${selectedBolum.link}`, videoSelectionParam, `${selectedBolum.title}`, response.selectedBolumIndex, bolumler, buttonText);
       }
     } else {
       console.log("Seçilen bölüm için geçerli video seçenekleri bulunamadı.");
-      await getAlucard(`https:${selectedBolum.link}`, "null", `${selectedBolum.title}`)
+      await getAlucard(`https:${selectedBolum.link}`, "null", `${selectedBolum.title}`, response.selectedBolumIndex, bolumler, "null");
     }
 
     await updateRPCWithAnimeDetails(animeId, response.selectedBolumIndex);
