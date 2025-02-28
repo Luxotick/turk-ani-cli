@@ -13,9 +13,13 @@ jobs:
   check_and_publish:
     runs-on: ubuntu-latest
     if: "contains(github.event.head_commit.message, '[publish]')"
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -73,7 +77,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
-        run: npm run build
+        run: |
+          npm run build
+          ls -la dist  # Check if dist directory is created and what's in it
+
+      - name: Prepare package
+        run: |
+          # Make sure the bin file is executable
+          chmod +x dist/index.js
+          # Check what will be included in the package
+          npm pack --dry-run
 
       - name: Publish to NPM
         run: npm publish
