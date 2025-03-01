@@ -17,6 +17,7 @@ options.addArguments('--disable-infobars');
 
 const mozillaUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
 options.addArguments(`user-agent=${mozillaUserAgent}`);
+options.addArguments("--user-data-dir=/path/to/temporary/profile")  // Farklı bir profil kullan
 
 const capabilities = Capabilities.chrome();
 
@@ -181,8 +182,8 @@ export async function getAlucard(url: string, selectedFansubParam: string, selec
     } finally {
         if (driver) {
             try {
-                await driver.quit();
                 await driver.close();
+                await driver.quit();
                 console.log('Chrome driver closed successfully');
             } catch (err) {
                 console.error('Error closing browser:', err);

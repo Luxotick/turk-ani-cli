@@ -51,7 +51,7 @@ export async function download(url: string, episodeName: string, currentEpisodeI
   // Check if the master.m3u8 file already exists
   if (fs.existsSync(masterFilePath)) {
     console.log('Stream data already exists. Opening existing stream...');
-    await cleanupChrome(); // Clean up before starting server
+    //await cleanupChrome(); // Clean up before starting server
     await startServer(sanitizedEpisodeName, currentEpisodeIndex || 0, allEpisodes || [], fansubName);
     return;
   }
@@ -69,6 +69,7 @@ export async function download(url: string, episodeName: string, currentEpisodeI
     options.addArguments('--disable-dev-shm-usage');
     options.addArguments('--window-size=1920x1080');
     options.addArguments('log-level=3')
+    options.addArguments("--user-data-dir=/path/to/temporary/profile")  // Farklı bir profil kullan
 
     console.log('Creating Chrome driver...');
     const driver = await new Builder()
@@ -123,7 +124,7 @@ export async function download(url: string, episodeName: string, currentEpisodeI
         console.log('Error: master.m3u8 file not found after download');
       }
 
-      await cleanupChrome();
+      //await cleanupChrome();
       await startServer(sanitizedEpisodeName, currentEpisodeIndex || 0, allEpisodes || [], fansubName);
     } finally {
       await driver.close();
