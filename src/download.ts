@@ -69,7 +69,6 @@ export async function download(url: string, episodeName: string, currentEpisodeI
     options.addArguments('--disable-dev-shm-usage');
     options.addArguments('--window-size=1920x1080');
     options.addArguments('log-level=3')
-    options.addArguments("--user-data-dir=/path/to/temporary/profile")  // Farklı bir profil kullan
 
     console.log('Creating Chrome driver...');
     const driver = await new Builder()
