@@ -75,7 +75,7 @@ export async function getAlucard(url: string, selectedFansubParam: string, selec
     }
 
     try {
-        await killChromeProcesses();
+        //await killChromeProcesses();
 
         driver = await new Builder()
             .forBrowser('chrome')
@@ -182,6 +182,7 @@ export async function getAlucard(url: string, selectedFansubParam: string, selec
         if (driver) {
             try {
                 await driver.quit();
+                await driver.close();
                 console.log('Chrome driver closed successfully');
             } catch (err) {
                 console.error('Error closing browser:', err);
@@ -189,6 +190,6 @@ export async function getAlucard(url: string, selectedFansubParam: string, selec
         }
         
         await closeDebuggerConnection();
-        await killChromeProcesses();
+        //await killChromeProcesses();
     }
 }
