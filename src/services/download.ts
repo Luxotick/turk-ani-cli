@@ -1,15 +1,22 @@
+/**
+ * Download Service
+ * Handles downloading and processing video streams
+ */
+
 import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
 import { Builder, WebDriver } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome.js';
 import path from 'path';
 import fs from 'fs';
-import startServer from './hostServer.js'; // Sunucu dosyasını içe aktar
+import startServer from './hostServer.js';
 import { exec } from 'child_process';
+import { sanitizeFilename, ensureDirectoryExists, fileExists, writeTextToFile } from '../utils/fileUtils.js';
 
-// Function to kill Chrome processes and cleanup debugging session
+/**
+ * Clean up Chrome processes and debugging sessions
+ */
 async function cleanupChrome() {
-    // Kill any remaining Chrome processes    
     // Cleanup debugging port
     exec('netstat -ano | findstr :9224 | findstr LISTENING', (error, stdout) => {
         if (stdout) {
@@ -19,43 +26,63 @@ async function cleanupChrome() {
     });
 }
 
-export async function download(url: string, episodeName: string, currentEpisodeIndex?: number, allEpisodes?: { title: string; link: string }[], fansubName: string = 'null') {
-  console.log('Starting download process for URL:', url);
+/**
+ * Download and process video stream
+ * @param url Stream URL
+ * @param episodeName Episode name
+ * @param currentEpisodeIndex Current episode index
+ * @param allEpisodes Array of all episodes
+ * @param fansubName Fansub name
+ * @param isCacheMode Whether this is a background cache operation
+ * @returns null if download fails
+ */
+export async function download(
+    url: string, 
+    episodeName: string, 
+    currentEpisodeIndex?: number, 
+    allEpisodes?: { title: string; link: string }[], 
+    fansubName: string = 'null',
+    isCacheMode: boolean = false
+) {
+  // Custom log function that respects cache mode
+  const log = (message: string) => {
+    if (!isCacheMode) {
+      console.log(message);
+    }
+  };
+
+  log('Starting download process for URL: ' + url);
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
   };
   const __dirname = import.meta.dirname
 
-  // Remove spaces and sanitize the episode name for safe file system usage
-  const sanitizedEpisodeName = episodeName
-    .replace(/ /g, '')
-    .replace(/:/g, '') // Remove colons
-    .replace(/[<>:"\/\\|?*]/g, '') // Remove Windows invalid characters
-    .replace(/[^\x20-\x7E]/g, '') // Remove non-printable ASCII characters
-    .replace(/^\.+/, '') // Remove leading periods (hidden files in Unix)
-    .replace(/^(con|prn|aux|nul|com\d|lpt\d)$/i, '_$1') // Handle Windows reserved names
-    .substring(0, 255); // Limit length to common filesystem max
+  // Sanitize the episode name for safe file system usage
+  const sanitizedEpisodeName = sanitizeFilename(episodeName);
   
   const downloadPath = path.resolve(__dirname, "downloads", sanitizedEpisodeName); // Folder for the specific episode
   const masterFilePath = path.join(downloadPath, "master.m3u8");
 
-  if (!fs.existsSync(downloadPath)) {
-    fs.mkdirSync(downloadPath, { recursive: true }); // Create the episode directory if it doesn't exist
-    console.log(`Created download directory: ${downloadPath}`);
+  // Ensure download directory exists
+  if (ensureDirectoryExists(downloadPath)) {
+    log(`Download directory ready: ${downloadPath}`);
   } else {
-    console.log(`Download directory already exists: ${downloadPath}`);
+    if (!isCacheMode) console.error('Failed to create download directory');
+    return null;
   }
 
   // Check if the master.m3u8 file already exists
-  if (fs.existsSync(masterFilePath)) {
-    console.log('Stream data already exists. Opening existing stream...');
-    //await cleanupChrome(); // Clean up before starting server
-    await startServer(sanitizedEpisodeName, currentEpisodeIndex || 0, allEpisodes || [], fansubName);
+  if (fileExists(masterFilePath)) {
+    log('Stream data already exists. Opening existing stream...');
+    
+    // Only start the server if not in cache mode
+    if (!isCacheMode) {
+      await startServer(sanitizedEpisodeName, currentEpisodeIndex || 0, allEpisodes || [], fansubName);
+    }
     return;
   }
 
   try {
-    //console.log('Setting up Chrome options for download...');
     const options = new chrome.Options();
     options.setUserPreferences({
       'download.default_directory': downloadPath,
@@ -68,28 +95,26 @@ export async function download(url: string, episodeName: string, currentEpisodeI
     options.addArguments('--window-size=1920x1080');
     options.addArguments('log-level=3')
 
-    console.log('Creating Chrome driver...');
+    log('Creating Chrome driver...');
     const driver = await new Builder()
       .forBrowser('chrome')
       .setChromeOptions(options)
       .build();
 
     try {
-      console.log('Navigating to Alucard stream URL:', url);
+      log('Navigating to Alucard stream URL: ' + url);
       await driver.get(url);
       
-      //console.log('Downloading alucard stream data..');
-      console.log('GET Request successfully sent');
+      log('GET Request successfully sent');
       
-      const masterFilePathFromDownload = await waitForDownloadToFinish(downloadPath) as string;
-      console.log('Download completed:', masterFilePathFromDownload);
+      const masterFilePathFromDownload = await waitForDownloadToFinish(downloadPath, 60000, isCacheMode) as string;
+      log('Download completed: ' + masterFilePathFromDownload);
 
       // Read the master.m3u8 file to extract links
-      if (fs.existsSync(masterFilePathFromDownload)) {
+      if (fileExists(masterFilePathFromDownload)) {
         const masterContent = fs.readFileSync(masterFilePathFromDownload, 'utf8');
         const lines = masterContent.split('\n');
 
-        //console.log('Processing m3u8 content...');
         const newContent: string[] = [];
 
         for (const line of lines) {
@@ -104,10 +129,8 @@ export async function download(url: string, episodeName: string, currentEpisodeI
               const localFileName = `${resolution}.m3u8`;
               const localFilePath = path.join(downloadPath, localFileName);
 
-              //console.log(`Downloading ${localFileName}..`);
-
               // Download the linked file using Selenium
-              await downloadFileWithSelenium(driver, line, localFilePath);
+              await downloadFileWithSelenium(driver, line, localFilePath, isCacheMode);
               newContent.push(`http://localhost:8000/downloads/${sanitizedEpisodeName}/${localFileName}`); // Change to the HTTP URL with the sanitized episode name
             } else {
               newContent.push(line);
@@ -115,28 +138,47 @@ export async function download(url: string, episodeName: string, currentEpisodeI
           }
         }
 
-        fs.writeFileSync(masterFilePath, newContent.join('\n'));
-        console.log(`master.m3u8 created at ${masterFilePath}`);
+        // Write the modified content to master.m3u8
+        if (writeTextToFile(masterFilePath, newContent.join('\n'))) {
+          log(`master.m3u8 created at ${masterFilePath}`);
+        } else {
+          if (!isCacheMode) console.error('Failed to write master.m3u8 file');
+        }
       } else {
-        console.log('Error: master.m3u8 file not found after download');
+        if (!isCacheMode) console.log('Error: master.m3u8 file not found after download');
       }
 
       await cleanupChrome();
       await driver.close();
       await driver.quit();
-      await startServer(sanitizedEpisodeName, currentEpisodeIndex || 0, allEpisodes || [], fansubName);
+      
+      // Only start the server if not in cache mode
+      if (!isCacheMode) {
+        await startServer(sanitizedEpisodeName, currentEpisodeIndex || 0, allEpisodes || [], fansubName);
+      }
     } finally {
-
+      // Cleanup handled in the finally block
     }
   } catch (error) {
-    console.error('Download error:', error);
+    if (!isCacheMode) console.error('Download error:', error);
     return null;
   }
 }
 
-async function waitForDownloadToFinish(downloadPath: string, timeout: number = 60000) {
-  //console.log(`Waiting for download in ${downloadPath}...`);
+/**
+ * Wait for a file to finish downloading
+ * @param downloadPath Directory to watch for downloads
+ * @param timeout Timeout in milliseconds
+ * @param isCacheMode Whether this is a background cache operation
+ * @returns Path to the downloaded file
+ */
+async function waitForDownloadToFinish(downloadPath: string, timeout: number = 60000, isCacheMode: boolean = false) {
   const startTime = Date.now();
+  const log = (message: string) => {
+    if (!isCacheMode) {
+      console.log(message);
+    }
+  };
 
   return new Promise((resolve, reject) => {
     const checkInterval = setInterval(() => {
@@ -168,12 +210,11 @@ async function waitForDownloadToFinish(downloadPath: string, timeout: number = 6
                 const correctFilePath = path.join(downloadPath, `${resolution}.m3u8`);
 
                 fs.renameSync(filePath, correctFilePath);
-                //console.log(`Renamed ${filePath} to ${correctFilePath}`);
                 resolve(correctFilePath);
                 return;
               }
             } catch (readError) {
-              console.log(`Error reading file content for renaming: ${readError}`);
+              log(`Error reading file content for renaming: ${readError}`);
             }
             
             resolve(filePath);
@@ -184,11 +225,11 @@ async function waitForDownloadToFinish(downloadPath: string, timeout: number = 6
         // Check for timeout
         if (Date.now() - startTime > timeout) {
           clearInterval(checkInterval);
-          console.log(`Download timeout after ${timeout}ms`);
+          log(`Download timeout after ${timeout}ms`);
           reject(new Error(`Download timeout after ${timeout}ms`));
         }
       } catch (error) {
-        console.log('Error checking download directory:', error);
+        log('Error checking download directory: ' + error);
         if (Date.now() - startTime > timeout) {
           clearInterval(checkInterval);
           reject(error);
@@ -198,10 +239,19 @@ async function waitForDownloadToFinish(downloadPath: string, timeout: number = 6
   });
 }
 
-async function downloadFileWithSelenium(driver: WebDriver, url: string, outputPath: string) {
-  console.log(`Downloading ${url} to ${outputPath}`);
+/**
+ * Download a file using Selenium
+ * @param driver Selenium WebDriver instance
+ * @param url URL to download
+ * @param outputPath Path to save the file
+ * @param isCacheMode Whether this is a background cache operation
+ */
+async function downloadFileWithSelenium(driver: WebDriver, url: string, outputPath: string, isCacheMode: boolean = false) {
+  if (!isCacheMode) {
+    console.log(`Downloading ${url} to ${outputPath}`);
+  }
   await driver.get(url);
 
   // Wait for the download to complete
-  await waitForDownloadToFinish(path.dirname(outputPath));
-}
+  await waitForDownloadToFinish(path.dirname(outputPath), 60000, isCacheMode);
+} 

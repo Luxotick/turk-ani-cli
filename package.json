@@ -36,5 +36,18 @@
     "puppeteer": "^22.15.0",
     "selenium-webdriver": "^4.23.0"
   },
-  "preferGlobal": true
+  "preferGlobal": true,
+  "description": "A command-line interface for watching Turkish anime from turkanime.co",
+  "keywords": [
+    "anime",
+    "cli",
+    "turkish",
+    "video",
+    "streaming"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Luxotick/turk-ani-cli"
+  },
+  "license": "MIT"
 }

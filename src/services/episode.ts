@@ -1,6 +1,16 @@
+/**
+ * Episode service
+ * Handles fetching episode information from the anime website
+ */
+
 import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
 
+/**
+ * Fetch episodes for a specific anime
+ * @param animeId ID of the anime to fetch episodes for
+ * @returns Array of episodes with title and link, or null if none found
+ */
 export async function fetchBolumler(animeId: string): Promise<{ title: string; link: string }[] | null> {
     const url = `https://www.turkanime.co/ajax/bolumler?animeId=${animeId}`;
     
@@ -38,4 +48,4 @@ export async function fetchBolumler(animeId: string): Promise<{ title: string; l
         console.error('Hata:', error);
         return null;
     }
-}
+} 

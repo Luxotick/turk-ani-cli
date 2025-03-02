@@ -1,9 +1,15 @@
+/**
+ * Host Server Service
+ * Manages a local HTTP server to serve video content and handle MPV player
+ */
+
 import express from 'express';
 import path from 'path';
 import { exec } from 'child_process';
 import { getAlucard } from './getAlucard.js';
 import fs from 'fs';
 import readline from 'readline';
+import { cacheNextEpisode } from '../utils/cacheUtils.js';
 
 const app = express();
 const PORT = 8000;
@@ -13,6 +19,14 @@ app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
 
 let server: any = null;
 
+/**
+ * Start the HTTP server and launch MPV player
+ * @param episodeName Name of the episode
+ * @param currentEpisodeIndex Index of the current episode
+ * @param allEpisodes Array of all episodes
+ * @param selectedFansub Selected fansub name
+ * @returns Promise that resolves when playback ends
+ */
 const startServer = (episodeName: string, currentEpisodeIndex: number, allEpisodes: { title: string; link: string }[], selectedFansub: string) => {
     return new Promise((resolve) => {
         if (server) {
@@ -45,6 +59,14 @@ const startServer = (episodeName: string, currentEpisodeIndex: number, allEpisod
     });
 }
 
+/**
+ * Run MPV player with the specified episode
+ * @param episodeName Name of the episode
+ * @param currentEpisodeIndex Index of the current episode
+ * @param allEpisodes Array of all episodes
+ * @param selectedFansub Selected fansub name
+ * @returns Promise that resolves when playback ends
+ */
 function runMpv(episodeName: string, currentEpisodeIndex: number, allEpisodes: { title: string; link: string }[], selectedFansub: string): Promise<void> {
     return new Promise((resolve) => {
         // Show available controls first
@@ -74,23 +96,27 @@ q quit 0
         const command = `mpv --display-tags-clr --user-agent="Mozilla/5.0" --fullscreen --volume=50 \
             --cache=yes \
             --cache-pause=no \
-            --cache-secs=60 \
-            --demuxer-readahead-secs=60 \
+            --cache-secs=120 \
+            --demuxer-readahead-secs=120 \
             --force-seekable=yes \
             --stream-lavf-o="stimeout=60000000" \
             --network-timeout=60 \
             --hls-bitrate=max \
-            --stream-buffer-size=64M \
-            --no-cache-pause \
+            --stream-buffer-size=128M \
             --vd-lavc-threads=8 \
             --no-ytdl \
-            --profile=low-latency \
-            --untimed \
+            --demuxer-max-bytes=512MiB \
+            --demuxer-max-back-bytes=128MiB \
             --fullscreen \
             --input-conf="${inputConfPath}" \
             "http://localhost:${PORT}/downloads/${episodeName}/master.m3u8"`;
 
         console.log('Starting MPV...');
+
+        // Start caching the next episode in the background
+        if (allEpisodes && currentEpisodeIndex < allEpisodes.length - 1) {
+            cacheNextEpisode(allEpisodes, currentEpisodeIndex, selectedFansub);
+        }
 
         const mpvProcess = exec(command, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
             if (error && error.code !== 51) { // Ignore exit code 51 (next episode)
@@ -137,4 +163,4 @@ q quit 0
     });
 }
 
-export default startServer;
+export default startServer; 

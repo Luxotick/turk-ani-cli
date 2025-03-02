@@ -1,3 +1,8 @@
+/**
+ * Alucard Stream Service
+ * Handles fetching video streams from Alucard using Selenium
+ */
+
 import { Options, WebDriver, until, Builder, By, Capabilities } from 'selenium-webdriver';
 import { Options as ChromeOptions } from 'selenium-webdriver/chrome.js';
 import CDP from 'chrome-remote-interface';
@@ -5,7 +10,10 @@ import { download } from './download.js';
 import { exec } from 'child_process';
 import prompts from 'prompts';
 import { Buffer } from 'buffer';
+import path from 'path';
+import { fileExists, sanitizeFilename } from '../utils/fileUtils.js';
 
+// Configure Chrome options for headless operation
 const options = new ChromeOptions();
 options.addArguments('--headless=new')
 options.addArguments('--no-sandbox');
@@ -20,6 +28,9 @@ options.addArguments(`user-agent=${mozillaUserAgent}`);
 
 const capabilities = Capabilities.chrome();
 
+/**
+ * Kill any running Chrome processes
+ */
 async function killChromeProcesses() {
     return new Promise((resolve) => {
         exec('taskkill /F /IM chrome.exe /T && taskkill /F /IM chromedriver.exe /T', (error) => {
@@ -33,6 +44,9 @@ async function killChromeProcesses() {
     });
 }
 
+/**
+ * Close Chrome debugger connection
+ */
 async function closeDebuggerConnection() {
     try {
         const client = await CDP({ port: 9224 });
@@ -43,63 +57,96 @@ async function closeDebuggerConnection() {
     }
 }
 
-export async function getAlucard(url: string, selectedFansubParam: string, selectedBolum: string, currentEpisodeIndex: number, allEpisodes: { title: string; link: string }[], selectedFansubName: string) {
+/**
+ * Get Alucard stream URL and download the video
+ * @param url Episode URL
+ * @param selectedFansubParam Selected fansub parameter
+ * @param selectedBolum Selected episode name
+ * @param currentEpisodeIndex Current episode index
+ * @param allEpisodes Array of all episodes
+ * @param selectedFansubName Selected fansub name
+ * @param isCacheMode Whether this is a background cache operation
+ */
+export async function getAlucard(
+    url: string, 
+    selectedFansubParam: string, 
+    selectedBolum: string, 
+    currentEpisodeIndex: number, 
+    allEpisodes: { title: string; link: string }[], 
+    selectedFansubName: string,
+    isCacheMode: boolean = false
+) {
     let driver: WebDriver | undefined;
     let retryCount = 0;
     const maxRetries = 3;
 
+    // Custom log function that respects cache mode
+    const log = (message: string) => {
+        if (!isCacheMode) {
+            console.log(message);
+        }
+    };
+
+    // Check if stream data already exists before starting Chrome processes
+    const __dirname = import.meta.dirname;
+    const sanitizedEpisodeName = sanitizeFilename(selectedBolum);
+    const downloadPath = path.resolve(__dirname, "downloads", sanitizedEpisodeName);
+    const masterFilePath = path.join(downloadPath, "master.m3u8");
+    
+    if (fileExists(masterFilePath)) {
+        log('Stream data already exists. Skipping Chrome processes...');
+        return download(
+            url, 
+            selectedBolum, 
+            currentEpisodeIndex, 
+            allEpisodes, 
+            selectedFansubName,
+            isCacheMode
+        );
+    }
+
     async function tryGetAlucardStream(): Promise<string | null> {
         await new Promise(resolve => setTimeout(resolve, 5000));
-        console.log('Checking for Alucard stream URL...');
+        if (!isCacheMode) log('Checking for Alucard stream URL...');
         const pageSource = await driver!.getPageSource();
-        
-        // Log a portion of the page source to debug
-        //console.log('Page source snippet:', pageSource.substring(0, 500) + '...');
         
         // Try different regex patterns to find the URL
         const alucardMatch = pageSource.match(/https:\/\/alucard\.stream\/cdn\/playlist\/[^"']*/);
         if (alucardMatch) {
-            //console.log('Found Alucard URL with pattern 1:', alucardMatch[0]);
             return alucardMatch[0];
         }
         
         // Try alternative pattern
         const altMatch = pageSource.match(/https:\/\/[^"']*alucard[^"']*\.m3u8/i);
         if (altMatch) {
-            //console.log('Found Alucard URL with pattern 2:', altMatch[0]);
             return altMatch[0];
         }
         
-        console.log('No Alucard stream URL found in page source');
+        if (!isCacheMode) log('No Alucard stream URL found in page source');
         return null;
     }
 
     try {
-        //await killChromeProcesses();
-
         driver = await new Builder()
             .forBrowser('chrome')
             .withCapabilities(capabilities)
             .setChromeOptions(options)
             .build();
 
-        //console.log('Chrome instance created successfully');
-        console.log('Navigating to URL:', url);
+        log('Navigating to URL: ' + url);
         
         await driver.get(url);
 
         // Check if we're handling a next episode with a fansub name (not a parameter)
         if (selectedFansubName !== 'null' && selectedFansubParam === selectedFansubName) {
-            console.log('Next episode detected with fansub name:', selectedFansubName);
+            if (!isCacheMode) log('Next episode detected with fansub name: ' + selectedFansubName);
             
             // Wait for the fansub buttons to load
             try {
-                //console.log('Waiting for fansub buttons to appear...');
                 await driver.wait(until.elementLocated(By.css('.pull-right button')), 10000);
                 
                 // Find all fansub buttons
                 const buttons = await driver.findElements(By.css('.pull-right button'));
-                //console.log(`Found ${buttons.length} fansub buttons`);
                 
                 // Find the button with matching text
                 let fansubParam = null;
@@ -112,7 +159,6 @@ export async function getAlucard(url: string, selectedFansubParam: string, selec
                             const paramMatch = onclick.match(/'([^']+)'/);
                             if (paramMatch && paramMatch[1]) {
                                 fansubParam = paramMatch[1];
-                                //console.log(`Found matching fansub button with parameter: ${fansubParam}`);
                                 break;
                             }
                         }
@@ -122,39 +168,36 @@ export async function getAlucard(url: string, selectedFansubParam: string, selec
                 if (fansubParam) {
                     // Execute the script with the extracted parameter
                     const script = `IndexIcerik('${fansubParam}','videodetay');`;
-                    console.log('Executing script with extracted parameter:', fansubParam);
+                    if (!isCacheMode) log('Executing script with extracted parameter: ' + fansubParam);
                     await driver.executeScript(script);
                 } else {
-                    console.log(`Could not find button for fansub: ${selectedFansubName}`);
+                    if (!isCacheMode) log(`Could not find button for fansub: ${selectedFansubName}`);
                 }
             } catch (error) {
-                console.error('Error finding fansub buttons:', error);
+                if (!isCacheMode) console.error('Error finding fansub buttons:', error);
             }
         } 
         // If we have a direct parameter (first episode or successfully extracted parameter)
         else if (selectedFansubParam !== 'null') {
             const script = `IndexIcerik('${selectedFansubParam}','videodetay');`;
-            console.log('Executing script with fansub parameter:', selectedFansubParam);
+            if (!isCacheMode) log('Executing script with fansub parameter: ' + selectedFansubParam);
             await driver!.executeScript(script);
         }
         
         // Add a wait for page to load after script execution
-        //console.log('Waiting for page to update after script execution...');
         await driver.sleep(3000);
         
         // Try to find any iframe that might contain the video
         try {
             const iframes = await driver.findElements(By.tagName('iframe'));
-            //console.log(`Found ${iframes.length} iframes on the page`);
             
             if (iframes.length > 0) {
-                //console.log('Switching to first iframe to check for video content');
                 await driver.switchTo().frame(iframes[0]);
                 await driver.sleep(1000);
                 await driver.switchTo().defaultContent();
             }
         } catch (e) {
-            console.log('Error checking iframes:', e);
+            if (!isCacheMode) log('Error checking iframes: ' + e);
         }
 
         // Try to get Alucard stream with retries
@@ -162,38 +205,37 @@ export async function getAlucard(url: string, selectedFansubParam: string, selec
             const streamUrl = await tryGetAlucardStream();
             
             if (streamUrl) {
-                console.log('Found Alucard stream URL:', streamUrl);
+                if (!isCacheMode) log('Found Alucard stream URL: ' + streamUrl);
                 await driver.close();
                 await driver.quit();
-                console.log('Chrome driver closed successfully');
+                if (!isCacheMode) log('Chrome driver closed successfully');
 
-                await download(streamUrl, selectedBolum, currentEpisodeIndex, allEpisodes, selectedFansubName);
+                await download(streamUrl, selectedBolum, currentEpisodeIndex, allEpisodes, selectedFansubName, isCacheMode);
                 break;
             } else {
                 retryCount++;
                 if (retryCount < maxRetries) {
-                    console.log(`Retry ${retryCount}/${maxRetries}: Waiting for Alucard stream...`);
+                    if (!isCacheMode) log(`Retry ${retryCount}/${maxRetries}: Waiting for Alucard stream...`);
                     await new Promise(resolve => setTimeout(resolve, 5000));
                 } else {
-                    console.log('Failed to find Alucard stream URL after all retries');
+                    if (!isCacheMode) log('Failed to find Alucard stream URL after all retries');
                 }
             }
         }
 
     } catch (error) {
-        console.error('Detailed Error:', error);
+        if (!isCacheMode) console.error('Detailed Error:', error);
     } finally {
         if (driver) {
             try {
                 await driver.close();
                 await driver.quit();
-                console.log('Chrome driver closed successfully');
+                if (!isCacheMode) log('Chrome driver closed successfully');
             } catch (err) {
-                console.error('Error closing browser:', err);
+                if (!isCacheMode) console.error('Error closing browser:', err);
             }
         }
         
         await closeDebuggerConnection();
-        //await killChromeProcesses();
     }
-}
+} 
