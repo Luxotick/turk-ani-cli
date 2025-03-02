@@ -9,9 +9,7 @@ import { exec } from 'child_process';
 
 // Function to kill Chrome processes and cleanup debugging session
 async function cleanupChrome() {
-    // Kill any remaining Chrome processes
-    exec('taskkill /F /IM chrome.exe /T', () => {});
-    
+    // Kill any remaining Chrome processes    
     // Cleanup debugging port
     exec('netstat -ano | findstr :9224 | findstr LISTENING', (error, stdout) => {
         if (stdout) {
@@ -123,11 +121,12 @@ export async function download(url: string, episodeName: string, currentEpisodeI
         console.log('Error: master.m3u8 file not found after download');
       }
 
-      //await cleanupChrome();
-      await startServer(sanitizedEpisodeName, currentEpisodeIndex || 0, allEpisodes || [], fansubName);
-    } finally {
+      await cleanupChrome();
       await driver.close();
       await driver.quit();
+      await startServer(sanitizedEpisodeName, currentEpisodeIndex || 0, allEpisodes || [], fansubName);
+    } finally {
+
     }
   } catch (error) {
     console.error('Download error:', error);

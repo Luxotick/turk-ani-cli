@@ -163,6 +163,10 @@ export async function getAlucard(url: string, selectedFansubParam: string, selec
             
             if (streamUrl) {
                 console.log('Found Alucard stream URL:', streamUrl);
+                await driver.close();
+                await driver.quit();
+                console.log('Chrome driver closed successfully');
+
                 await download(streamUrl, selectedBolum, currentEpisodeIndex, allEpisodes, selectedFansubName);
                 break;
             } else {
