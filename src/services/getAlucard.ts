@@ -66,6 +66,9 @@ async function closeDebuggerConnection() {
  * @param allEpisodes Array of all episodes
  * @param selectedFansubName Selected fansub name
  * @param isCacheMode Whether this is a background cache operation
+ * @param startPosition Position in seconds to start playback from (optional)
+ * @param animeId ID of the anime (for saving watch history, optional)
+ * @param animeTitle Title of the anime (for saving watch history, optional)
  */
 export async function getAlucard(
     url: string, 
@@ -74,7 +77,10 @@ export async function getAlucard(
     currentEpisodeIndex: number, 
     allEpisodes: { title: string; link: string }[], 
     selectedFansubName: string,
-    isCacheMode: boolean = false
+    isCacheMode: boolean = false,
+    startPosition: number = 0,
+    animeId?: string,
+    animeTitle?: string
 ) {
     let driver: WebDriver | undefined;
     let retryCount = 0;
@@ -101,7 +107,10 @@ export async function getAlucard(
             currentEpisodeIndex, 
             allEpisodes, 
             selectedFansubName,
-            isCacheMode
+            isCacheMode,
+            startPosition,
+            animeId,
+            animeTitle
         );
     }
 
@@ -210,7 +219,7 @@ export async function getAlucard(
                 await driver.quit();
                 if (!isCacheMode) log('Chrome driver closed successfully');
 
-                await download(streamUrl, selectedBolum, currentEpisodeIndex, allEpisodes, selectedFansubName, isCacheMode);
+                await download(streamUrl, selectedBolum, currentEpisodeIndex, allEpisodes, selectedFansubName, isCacheMode, startPosition, animeId, animeTitle);
                 break;
             } else {
                 retryCount++;

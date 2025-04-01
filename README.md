@@ -11,6 +11,25 @@ A command-line interface for watching Turkish anime from turkanime.co with Disco
 - Discord Rich Presence integration
 - Next episode functionality
 - Keyboard controls for playback
+- Watch history tracking
+- Resume playback from where you left off
+
+## Watch History
+
+The application automatically tracks your watch history, allowing you to:
+
+- See a list of recently watched anime
+- Resume watching from where you left off
+- Delete your entire watch history when needed
+
+Watch history is stored locally in `~/.tacli/watch-history.json`. The application remembers:
+- Which anime you watched
+- Which episode you watched
+- Your exact playback position
+- Which fansub you selected
+
+To resume watching, simply run the app without parameters and select "Watch History" from the menu.
+To delete your watch history, select "Delete Watch History" from the main menu.
 
 ## Requirements
 

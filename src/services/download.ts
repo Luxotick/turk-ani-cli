@@ -34,6 +34,9 @@ async function cleanupChrome() {
  * @param allEpisodes Array of all episodes
  * @param fansubName Fansub name
  * @param isCacheMode Whether this is a background cache operation
+ * @param startPosition Position in seconds to start playback from (optional)
+ * @param animeId ID of the anime (for saving watch history, optional)
+ * @param animeTitle Title of the anime (for saving watch history, optional)
  * @returns null if download fails
  */
 export async function download(
@@ -42,7 +45,10 @@ export async function download(
     currentEpisodeIndex?: number, 
     allEpisodes?: { title: string; link: string }[], 
     fansubName: string = 'null',
-    isCacheMode: boolean = false
+    isCacheMode: boolean = false,
+    startPosition: number = 0,
+    animeId?: string,
+    animeTitle?: string
 ) {
   // Custom log function that respects cache mode
   const log = (message: string) => {
@@ -77,7 +83,15 @@ export async function download(
     
     // Only start the server if not in cache mode
     if (!isCacheMode) {
-      await startServer(sanitizedEpisodeName, currentEpisodeIndex || 0, allEpisodes || [], fansubName);
+      await startServer(
+        sanitizedEpisodeName, 
+        currentEpisodeIndex || 0, 
+        allEpisodes || [], 
+        fansubName,
+        startPosition,
+        animeId,
+        animeTitle
+      );
     }
     return;
   }
@@ -154,7 +168,15 @@ export async function download(
       
       // Only start the server if not in cache mode
       if (!isCacheMode) {
-        await startServer(sanitizedEpisodeName, currentEpisodeIndex || 0, allEpisodes || [], fansubName);
+        await startServer(
+          sanitizedEpisodeName, 
+          currentEpisodeIndex || 0, 
+          allEpisodes || [], 
+          fansubName,
+          startPosition,
+          animeId,
+          animeTitle
+        );
       }
     } finally {
       // Cleanup handled in the finally block
