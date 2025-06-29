@@ -114,9 +114,10 @@ export async function getAlucard(
         );
     }
 
-    async function tryGetAlucardStream(): Promise<string | null> {
+    // TODO: Keep the old regex-based method as fallback
+    async function tryGetAlucardStreamLegacy(): Promise<string | null> {
         await new Promise(resolve => setTimeout(resolve, 5000));
-        if (!isCacheMode) log('Checking for Alucard stream URL...');
+        if (!isCacheMode) log('Checking for Alucard stream URL with legacy method...');
         const pageSource = await driver!.getPageSource();
         
         // Try different regex patterns to find the URL
@@ -135,6 +136,64 @@ export async function getAlucard(
         return null;
     }
 
+    /**
+     * Monitor network requests using Chrome DevTools Protocol (CDP)
+     * to capture Alucard stream URLs in real-time
+     */
+    async function monitorNetworkRequests(): Promise<string | null> {
+        return new Promise(async (resolve) => {
+            try {
+                const client = await CDP({ port: 9224 });
+                const { Network } = client;
+                
+                await Network.enable();
+                
+                if (!isCacheMode) log('CDP Network monitoring started...');
+                
+                // Set up timeout
+                const timeout = setTimeout(() => {
+                    client.close();
+                    resolve(null);
+                }, 30000); // 30 seconds timeout
+                
+                Network.requestWillBeSent((params) => {
+                    const url = params.request.url;
+                    
+                    // Log all requests for debugging (only in non-cache mode)
+                    if (!isCacheMode) {
+                        console.log('Network request detected:', url);
+                    }
+                    
+                    // Check for Alucard stream URLs
+                    if (url.includes('alucard.stream') && 
+                        (url.includes('playlist') || url.endsWith('.m3u8'))) {
+                        if (!isCacheMode) log('Found Alucard stream URL via CDP: ' + url);
+                        clearTimeout(timeout);
+                        client.close();
+                        resolve(url);
+                    }
+                });
+                
+                Network.responseReceived((params) => {
+                    const url = params.response.url;
+                    
+                    // Also check responses for stream URLs
+                    if (url.includes('alucard.stream') && 
+                        (url.includes('playlist') || url.endsWith('.m3u8'))) {
+                        if (!isCacheMode) log('Found Alucard stream URL in response via CDP: ' + url);
+                        clearTimeout(timeout);
+                        client.close();
+                        resolve(url);
+                    }
+                });
+                
+            } catch (error) {
+                if (!isCacheMode) console.error('CDP monitoring error:', error);
+                resolve(null);
+            }
+        });
+    }
+
     try {
         driver = await new Builder()
             .forBrowser('chrome')
@@ -145,6 +204,9 @@ export async function getAlucard(
         log('Navigating to URL: ' + url);
         
         await driver.get(url);
+
+        // Start CDP network monitoring immediately after page load
+        const cdpMonitoringPromise = monitorNetworkRequests();
 
         // Check if we're handling a next episode with a fansub name (not a parameter)
         if (selectedFansubName !== 'null' && selectedFansubParam === selectedFansubName) {
@@ -209,12 +271,28 @@ export async function getAlucard(
             if (!isCacheMode) log('Error checking iframes: ' + e);
         }
 
-        // Try to get Alucard stream with retries
+        // First try to get stream URL via CDP monitoring
+        const cdpStreamUrl = await cdpMonitoringPromise;
+        
+        if (cdpStreamUrl) {
+            if (!isCacheMode) log('Found Alucard stream URL via CDP: ' + cdpStreamUrl);
+            await driver.close();
+            await driver.quit();
+            if (!isCacheMode) log('Chrome driver closed successfully');
+
+            await download(cdpStreamUrl, selectedBolum, currentEpisodeIndex, allEpisodes, selectedFansubName, isCacheMode, startPosition, animeId, animeTitle);
+            return;
+        }
+
+        // Fallback to legacy regex-based method if CDP didn't find anything
+        if (!isCacheMode) log('CDP method failed, falling back to legacy regex method...');
+        
+        // Try legacy method with retries
         while (retryCount < maxRetries) {
-            const streamUrl = await tryGetAlucardStream();
+            const streamUrl = await tryGetAlucardStreamLegacy();
             
             if (streamUrl) {
-                if (!isCacheMode) log('Found Alucard stream URL: ' + streamUrl);
+                if (!isCacheMode) log('Found Alucard stream URL via legacy method: ' + streamUrl);
                 await driver.close();
                 await driver.quit();
                 if (!isCacheMode) log('Chrome driver closed successfully');
